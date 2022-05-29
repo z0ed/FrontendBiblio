@@ -1,0 +1,92 @@
+﻿@page "/book"
+
+@inject HttpClient _client;
+
+@using System.Net.Http.Json
+@using backendbiblioteca.Modelo
+@using FrontendBiblio.Data
+<MudButton OnClick="(args) => AddNewRegister()" Variant="Variant.Filled" Color="Color.Primary">Añadir</MudButton>
+
+<MudDataGrid T="Book" Items="@Books" ReadOnly="@_readOnly" EditMode="@(_isCellEditMode ? DataGridEditMode.Cell : DataGridEditMode.Form)"
+    StartedEditingItem="@StartedEditingItem" CancelledEditingItem="@CancelledEditingItem" CommittedItemChanges="@CommittedItemChanges"
+    Bordered="true" Dense="true" EditTrigger="@(_editTriggerRowClick ? DataGridEditTrigger.OnRowClick : DataGridEditTrigger.Manual)">
+    <Columns>
+        <Column T="Book" Field="BookID" Title="Id" IsEditable="false" />
+        <Column T="Book" Field="Title" />
+        <Column T="Book" Field="Editorial" />
+        <Column T="Libro" Field="Author"/>
+        <Column T="Libro" Field="Page" Title="Pagina" />
+        <Column T="Libro" Field="Description" Title="Description" />
+        <Column T="Libro" Hidden="@(_isCellEditMode  _readOnly  _editTriggerRowClick)" CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Outlined.Edit" OnClick="@context.Actions.StartEditingItem" />
+                 <MudIconButton Size="@Size.Small" Icon="@Icons.Outlined.Delete" OnClick="(args)=> EliminarEvento(context.Item)" />
+            </CellTemplate>
+        </Column>
+    </Columns>
+</MudDataGrid>
+
+
+
+@code {
+    private IEnumerable<Book> Books = new List<Book>();
+    private bool _readOnly;
+    private bool _isCellEditMode;
+    private List<string> _events = new();
+    private bool _editTriggerRowClick;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var elemento = new List<Book>();
+        _client.BaseAddress = new Uri("");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, "Biblioteca/ConsultarLibro");
+        var respuesta = await _client.SendAsync(requestMessage);
+
+        if(respuesta.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            var responseBody = await respuesta.Content.ReadAsStringAsync();
+            var BookLists = System.Text.Json.JsonSerializer.Deserialize<List<Book>>(responseBody);
+            Books = BookLists;
+        }
+
+
+    }
+
+    void DelEvent(Book item)
+    {
+        ((List<Book)Books).Remove(item);
+        StateHasChanged();
+    }
+
+    void AddNewRegister()
+    {
+        var elemento = new Book
+            {
+                BookID = 420,
+                Editorial = "Penguin",
+                Title = "IDK",
+                Author = "PJon DOE",
+                Page = 500,
+                Description = "IDK"
+            };
+        ((List<Book>)Books).Add(elemento);
+        StateHasChanged();
+    }
+ 
+    void StartedEditingItem(Book item)
+    {
+        _events.Insert(0, $"Event = StartedEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+    }
+
+    void CancelledEditingItem(Book item)
+    {
+        _events.Insert(0, $"Event = CancelledEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+    }
+    
+    void CommittedItemChanges(Book item)
+    {
+        _events.Insert(0, $"Event = CommittedItemChanges, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+        StateHasChanged();
+    }
+}
